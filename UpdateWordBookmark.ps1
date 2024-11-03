@@ -4,15 +4,19 @@ function Get-WindowsVersion {
     return "$($os.Caption) - Version $($os.Version)"
 }
 
-# Function to get the free and total space of drive C separately
+# Function to get the free and total space of a specified drive
 function Get-DriveSpace {
-    $drive = Get-PSDrive -Name C
+    param (
+        [string]$driveName
+    )
+    
+    $drive = Get-PSDrive -Name $driveName
     if ($null -eq $drive) {
-        throw "Drive C: not found."
+        throw "Drive $driveName not found."
     }
 
     $freeSpaceGB = [math]::Round($drive.Free / 1GB, 2)
-    $totalSpaceGB = [math]::Round($drive.Used / 1GB + $freeSpaceGB, 2)
+    $totalSpaceGB = [math]::Round(($drive.Used + $drive.Free) / 1GB, 2)
     
     return [pscustomobject]@{
         FreeSpaceGB  = $freeSpaceGB
@@ -44,9 +48,13 @@ function Update-WordBookmark {
 
 # Main script
 $docPath = Join-Path -Path $PSScriptRoot -ChildPath "document.docx"   # Replace "document.docx" with your Word document name
-$bookmarkFreeSpace = "FreeSpaceBookmark"                              # Replace with the bookmark for free space
-$bookmarkTotalSpace = "TotalSpaceBookmark"                            # Replace with the bookmark for total space
-$bookmarkWindowsVersion = "WindowsVersionBookmark"                    # Replace with the bookmark for Windows version
+
+# Define bookmarks for Drive C, Drive E, and Windows version
+$bookmarkFreeSpaceC = "FreeSpaceCBookmark"
+$bookmarkTotalSpaceC = "TotalSpaceCBookmark"
+$bookmarkFreeSpaceE = "FreeSpaceEBookmark"
+$bookmarkTotalSpaceE = "TotalSpaceEBookmark"
+$bookmarkWindowsVersion = "WindowsVersionBookmark"
 
 try {
     # Create Word Application COM object and open the document once
@@ -62,12 +70,19 @@ try {
     }
 
     # Get system information
-    $driveSpace = Get-DriveSpace
+    $driveSpaceC = Get-DriveSpace -driveName "C"
+    $driveSpaceE = Get-DriveSpace -driveName "E"
     $windowsVersion = Get-WindowsVersion
 
-    # Update bookmarks
-    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkFreeSpace -textToInsert "$($driveSpace.FreeSpaceGB) GB"
-    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkTotalSpace -textToInsert "$($driveSpace.TotalSpaceGB) GB"
+    # Update bookmarks for Drive C
+    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkFreeSpaceC -textToInsert "$($driveSpaceC.FreeSpaceGB) GB"
+    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkTotalSpaceC -textToInsert "$($driveSpaceC.TotalSpaceGB) GB"
+
+    # Update bookmarks for Drive E
+    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkFreeSpaceE -textToInsert "$($driveSpaceE.FreeSpaceGB) GB"
+    Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkTotalSpaceE -textToInsert "$($driveSpaceE.TotalSpaceGB) GB"
+
+    # Update the bookmark for Windows version
     Update-WordBookmark -wordApp $wordApp -document $document -bookmarkName $bookmarkWindowsVersion -textToInsert $windowsVersion
 
     # Save and close the document
