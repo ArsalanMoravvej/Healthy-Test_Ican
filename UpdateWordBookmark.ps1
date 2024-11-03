@@ -47,7 +47,7 @@ function Update-WordBookmark {
 }
 
 # Main script
-$docPath = Join-Path -Path $PSScriptRoot -ChildPath "document.docx"   # Replace "document.docx" with your Word document name
+$docPath = Join-Path -Path $PSScriptRoot -ChildPath "ApplicationServerHealthyCheckList.docx"
 
 # Define bookmarks for Drive C, Drive E, and Windows version
 $bookmarkFreeSpaceC = "FreeSpaceCBookmark"
