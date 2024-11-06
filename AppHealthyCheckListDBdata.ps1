@@ -1,14 +1,13 @@
-﻿    # Load .NET SQL types
+﻿# Load .NET SQL types
 Add-Type -AssemblyName "System.Data"
 
 # Define SQL Server connection details
 $serverName = "$($env:COMPUTERNAME)"  # Adjust instance name if necessary
-$database = "eOrganization"           # Database name
 $username = "farzindb"                # Replace with your SQL Server username
 $password = "123@com"                 # Replace with your SQL Server password
 
-# Connection string
-$connectionString = "Server=$serverName;Database=$database;Integrated Security=False;User ID=$username;Password=$password;"
+# Possible database names
+$databases = @("eOrganization", "ICANSBPMS")
 
 # SQL query
 $query = @"
@@ -19,15 +18,15 @@ SELECT
       CASE 
           WHEN [SendSearchType] = 0 THEN N'غیر اتومات'
           WHEN [SendSearchType] = 1 THEN N'اتومات'
-          ELSE N'0'
+          ELSE N'نامشخص'
       END AS [SendSearchTypeDescription],
       CASE 
           WHEN [EnableSessionTimeOut] = 0 THEN N'غیر فعال'
           WHEN [EnableSessionTimeOut] = 1 THEN N'فعال'
-          ELSE N'0'
+          ELSE N'نامشخص'
       END AS [EnableSessionTimeOutDescription],
       [SessionTimeOut]
-FROM [eOrganization].[dbo].[System_Settings]
+FROM [dbo].[System_Settings]
 WHERE [Code] = 1;
 "@
 
@@ -53,14 +52,42 @@ function Update-WordBookmark {
     }
 }
 
+# Function to attempt connection to a list of databases
+function Connect-ToDatabase {
+    param (
+        [array]$dbNames,     # List of possible database names
+        [string]$serverName, # Server name
+        [string]$username,   # Username
+        [string]$password    # Password
+    )
+
+    foreach ($dbName in $dbNames) {
+        $connectionString = "Server=$serverName;Database=$dbName;Integrated Security=False;User ID=$username;Password=$password;"
+        
+        # Try connecting
+        $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
+        try {
+            $connection.Open()
+            if ($connection.State -eq "Open") {
+                Write-Host "Connected to database '$dbName' successfully."
+                return $connection  # Return the successful connection
+            }
+        }
+        catch {
+            Write-Host "Could not connect to database '$dbName'. Trying next..."
+        }
+    }
+    throw "Unable to connect to any specified database."
+}
+
 # Main script
 $docPath = Join-Path -Path $PSScriptRoot -ChildPath "ApplicationServerHealthyCheckList.docx"
 
 try {
-    # Connect to SQL Server and execute query
-    $connection = New-Object System.Data.SqlClient.SqlConnection($connectionString)
-    $connection.Open()
+    # Attempt to connect to one of the databases
+    $connection = Connect-ToDatabase -dbNames $databases -serverName $serverName -username $username -password $password
 
+    # Create SQL command
     $command = $connection.CreateCommand()
     $command.CommandText = $query
 
